@@ -12,6 +12,7 @@
   1 = 睁眼基线   2 = 闭眼   3 = 哈欠   4 = 低头   5 = 自然眨眼
   s / 空格 = 停止当前步骤
   q / ESC   = 结束本次采集
+  注意：正在录某一步时，按其它数字键不会跳转，需先按 s/空格 停止再切换
 
 输出结构：
   data/测试者1号_男_175cm_22岁_戴眼镜/
@@ -27,6 +28,8 @@ from collections import deque
 import cv2
 import mediapipe as mp
 import numpy as np
+
+from cn_text import draw_texts
 
 # ---------- 关键点 & 阈值（已按你标定） ----------
 LEFT_EYE = [362, 385, 387, 263, 373, 380]
@@ -197,6 +200,8 @@ while True:
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     result = face_mesh.process(rgb)
 
+    cn = []  # 中文叠加文字（cv2 画不了中文，统一交给 draw_texts 画）
+
     face_ok = False
     if result.multi_face_landmarks:
         face_ok = True
@@ -238,21 +243,21 @@ while True:
         cv2.putText(frame, f"EAR {ear:.3f}  MAR {mar:.3f}  pitch {pitch:.3f}", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         if active_step is not None:
-            cv2.putText(frame, f"步骤: {active_step}  已录 {time.time()-step_start_t:.0f}s",
-                        (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+            cn.append((f"步骤: {active_step}  已录 {time.time()-step_start_t:.0f}s",
+                       10, 62, 20, (0, 0, 255)))
     else:
         cv2.putText(frame, "no face", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
 
-    # 步骤菜单
-    y = 90
+    # 步骤菜单（中文交给 draw_texts 画）
+    y = 92
     for k, v in STEPS.items():
         mark = ">" if active_step == v else " "
-        cv2.putText(frame, f"{mark}{k} {v}", (10, y),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
-        y += 22
-    cv2.putText(frame, "s=停止  q=结束", (10, y + 8),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
+        cn.append((f"{mark}{k} {v}", 10, y, 20, (255, 255, 255)))
+        y += 24
+    cn.append(("s=停止  q=结束", 10, y + 4, 18, (200, 200, 200)))
+
+    draw_texts(frame, cn)
 
     cv2.imshow("collect", frame)
 
@@ -261,9 +266,10 @@ while True:
     if key == ord('q') or key == 27:
         break
     if 0 <= key < 256 and chr(key) in STEPS:
-        if active_step is not None:
-            end_step()
-        start_step(STEPS[chr(key)])
+        if active_step is None:
+            start_step(STEPS[chr(key)])
+        else:
+            print(f"[提示] 正在录「{active_step}」，先按 s/空格 停止，再切换其它步骤")
     elif key == ord('s') or key == 32:
         end_step()
     if cv2.getWindowProperty("collect", cv2.WND_PROP_VISIBLE) < 1:

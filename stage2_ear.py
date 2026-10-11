@@ -18,6 +18,8 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
+from cn_text import draw_texts
+
 # ---------- 眼睛关键点索引（mediapipe 468 点里编号固定的 12 个） ----------
 LEFT_EYE = [362, 385, 387, 263, 373, 380]   # 画面左侧那只眼
 RIGHT_EYE = [33, 160, 158, 133, 153, 144]   # 画面右侧那只眼
@@ -99,8 +101,7 @@ while True:
 
         # 屏幕显示 EAR 值和状态
         state = "CLOSED (闭眼)" if closed else "OPEN (睁眼)"
-        cv2.putText(frame, f"EAR: {ear:.3f}  {state}", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+        draw_texts(frame, [(f"EAR: {ear:.3f}  {state}", 10, 28, 22, color)])
         cv2.putText(frame, f"Blinks: {blink_count}", (10, 90),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
 

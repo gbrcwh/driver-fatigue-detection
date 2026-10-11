@@ -21,6 +21,8 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
+from cn_text import draw_texts
+
 # ---------- 关键点索引 ----------
 LEFT_EYE = [362, 385, 387, 263, 373, 380]
 RIGHT_EYE = [33, 160, 158, 133, 153, 144]
@@ -111,6 +113,7 @@ while True:
 
     alarm = False
     reason = ""
+    cn = []  # 中文叠加文字（cv2 画不了中文，统一交给 draw_texts 画）
 
     if result.multi_face_landmarks:
         landmarks = result.multi_face_landmarks[0].landmark
@@ -201,8 +204,8 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, mouth_color, 2)
         cv2.putText(frame, f"pitch: {pitch:.3f}  {head_state}", (10, 90),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, head_color, 2)
-        cv2.putText(frame, f"PERCLOS: {perclos:.0%}  眨眼={blink_count} 哈欠={yawn_count}",
-                    (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (200, 200, 200), 2)
+        cn.append((f"PERCLOS: {perclos:.0%}  眨眼={blink_count} 哈欠={yawn_count}",
+                   10, 118, 20, (200, 200, 200)))
 
     else:
         cv2.putText(frame, "no face", (10, 30),
@@ -221,13 +224,10 @@ while True:
             cv2.rectangle(overlay, (0, 0), (frame.shape[1], frame.shape[0]), (0, 0, 255), -1)
             frame = cv2.addWeighted(overlay, 0.25, frame, 0.75, 0)
 
-        cv2.putText(frame, "!! 疲劳警告 !!", (frame.shape[1] // 2 - 130, 60),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.4, (0, 0, 255), 3)
-        cv2.putText(frame, f"原因: {reason}", (frame.shape[1] // 2 - 90, 100),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
+        cn.append(("!! 疲劳警告 !!", frame.shape[1] // 2 - 120, 40, 32, (0, 0, 255)))
+        cn.append((f"原因: {reason}", frame.shape[1] // 2 - 90, 84, 24, (0, 0, 255)))
     else:
-        cv2.putText(frame, "状态: 正常", (frame.shape[1] - 150, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+        cn.append(("状态: 正常", frame.shape[1] - 150, 28, 22, (0, 255, 0)))
 
     # 帧率
     frame_count += 1
@@ -237,6 +237,8 @@ while True:
         fps_start = now
     cv2.putText(frame, f"FPS: {fps:.1f}", (10, 150),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
+
+    draw_texts(frame, cn)
 
     cv2.imshow("DMS stage4 - fatigue alarm", frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
